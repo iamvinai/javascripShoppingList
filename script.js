@@ -1,6 +1,7 @@
 // DOM Elements
 const form = document.getElementById("item-form");
 const itemList = document.getElementById("item-list");
+let idEdit = false;
 
 // ======================
 // HELPER FUNCTIONS
@@ -78,8 +79,35 @@ function addItem(e) {
   itemList.appendChild(item);
   form.reset();
   checkUI();
+  addItemToLocalStorage(name);
 }
 
+function addItemToLocalStorage(name) {
+  let items = localStorage.getItem("items") || "[]";
+  items = JSON.parse(items);
+  items.push(name);
+  localStorage.setItem("items", JSON.stringify(items));
+}
+
+function removeItemFromLocalStorage(name) {
+  let items = localStorage.getItem("items") || "[]";
+  items = JSON.parse(items);
+  // while (items.indexOf(name) !== -1) {
+  //   items.splice(items.indexOf(name), 1);
+  // }
+  items = items.filter((item) => item !== name);
+  localStorage.setItem("items", JSON.stringify(items));
+}
+
+function displayItemsFromLocalStorage() {
+  let items = localStorage.getItem("items") || "[]";
+  items = JSON.parse(items);
+  items.forEach((item) => {
+    const itemd = createItem(item);
+    itemList.appendChild(itemd);
+  });
+  checkUI();
+}
 /**
  * Handles click events on remove buttons
  * @param {Event} e - The click event
@@ -87,9 +115,12 @@ function addItem(e) {
 function onClickItem(e) {
   if (e.target.parentElement.classList.contains("remove-item")) {
     e.stopPropagation();
-    const parentItem = e.target.parentElement.parentElement;
-    parentItem.remove();
-    checkUI();
+    if (confirm("Are you sure you want to remove this item?")) {
+      const parentItem = e.target.parentElement.parentElement;
+      removeItemFromLocalStorage(parentItem.textContent);
+      parentItem.remove();
+      checkUI();
+    }
   }
 }
 
@@ -97,6 +128,7 @@ function onClickItem(e) {
  * Clears all items from the list
  */
 function clearItems() {
+  localStorage.removeItem("items");
   while (itemList.firstChild) {
     itemList.removeChild(itemList.firstChild);
   }
@@ -113,10 +145,24 @@ function checkUI() {
   }
 }
 
+function filterItems(e) {
+  const input = e.target.value.toLowerCase();
+  const items = itemList.querySelectorAll("li");
+  items.forEach((item) => {
+    const text = item.textContent.toLowerCase();
+    if (text.includes(input)) {
+      item.style.display = "flex";
+    } else {
+      item.style.display = "none";
+    }
+  });
+}
+
 // ======================
 // EVENT LISTENERS
 // ======================
 form.addEventListener("submit", addItem);
 itemList.addEventListener("click", onClickItem);
 document.getElementById("clear").addEventListener("click", clearItems);
-checkUI();
+document.getElementById("filter").addEventListener("input", filterItems);
+document.addEventListener("DOMContentLoaded", displayItemsFromLocalStorage);
