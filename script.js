@@ -1,41 +1,41 @@
-// DOM Elements
+// ======================
+// DOM ELEMENTS
+// ======================
 const form = document.getElementById("item-form");
 const itemList = document.getElementById("item-list");
-let idEdit = false;
+const inputbox = document.getElementById("item-input");
+const frmbtn = document.querySelector(".btn");
 
 // ======================
-// HELPER FUNCTIONS
+// STATE
+// ======================
+let isEditMode = false;
+
+// ======================
+// DOM MANIPULATION FUNCTIONS
 // ======================
 
 /**
  * Creates an icon element with specified classes
- * @param {Array<string>} classes - Array of CSS classes to apply
+ * @param {string[]} classes - Array of CSS classes to apply
  * @returns {HTMLElement} - The created icon element
  */
 function createIcon(classes) {
   const icon = document.createElement("i");
-  classes.forEach((cls) => {
-    icon.classList.add(cls);
-  });
+  icon.classList.add(...classes);
   return icon;
 }
 
 /**
  * Creates a close button with specified classes
- * @param {Array<string>} classes - Array of CSS classes to apply
+ * @param {string[]} classes - Array of CSS classes to apply
  * @returns {HTMLElement} - The created button element
  */
 function createCloseButton(classes) {
   const button = document.createElement("button");
   button.setAttribute("name", "remove-item");
-  classes.forEach((cls) => {
-    button.classList.add(cls);
-  });
-
-  const iconClasses = ["fa-solid", "fa-xmark"];
-  const icon = createIcon(iconClasses);
-  button.appendChild(icon);
-
+  button.classList.add(...classes);
+  button.appendChild(createIcon(["fa-solid", "fa-xmark"]));
   return button;
 }
 
@@ -47,14 +47,75 @@ function createCloseButton(classes) {
 function createItem(name) {
   const li = document.createElement("li");
   li.setAttribute("name", "item");
-  const text = document.createTextNode(name);
-  li.appendChild(text);
-
-  const buttonClasses = ["remove-item", "btn-link", "text-red"];
-  const button = createCloseButton(buttonClasses);
-  li.appendChild(button);
-
+  li.textContent = name;
+  li.appendChild(createCloseButton(["remove-item", "btn-link", "text-red"]));
   return li;
+}
+
+// ======================
+// LOCAL STORAGE FUNCTIONS
+// ======================
+
+/**
+ * Retrieves items from local storage
+ * @returns {string[]} - Array of item names
+ */
+function getItemsFromStorage() {
+  return JSON.parse(localStorage.getItem("items") || "[]");
+}
+
+/**
+ * Saves items to local storage
+ * @param {string[]} items - Array of item names to save
+ */
+function saveItemsToStorage(items) {
+  localStorage.setItem("items", JSON.stringify(items));
+}
+
+/**
+ * Adds an item to local storage
+ * @param {string} name - Name of the item to add
+ */
+function addItemToLocalStorage(name) {
+  const items = getItemsFromStorage();
+  items.push(name);
+  saveItemsToStorage(items);
+}
+
+/**
+ * Removes an item from local storage
+ * @param {string} name - Name of the item to remove
+ */
+function removeItemFromLocalStorage(name) {
+  const items = getItemsFromStorage().filter((item) => item !== name);
+  saveItemsToStorage(items);
+}
+
+// ======================
+// UI UPDATE FUNCTIONS
+// ======================
+
+/**
+ * Updates the UI based on current state
+ */
+function updateUI() {
+  const hasItems = itemList.children.length > 0;
+  document.getElementById("clear").style.display = hasItems ? "block" : "none";
+  document.getElementById("filter").style.display = hasItems ? "block" : "none";
+}
+
+/**
+ * Resets the form to its initial state
+ */
+function resetForm() {
+  form.reset();
+  isEditMode = false;
+  frmbtn.innerHTML = "<i class='fa-solid fa-plus'></i> Add Item";
+  frmbtn.classList.remove("update-mode");
+  frmbtn.classList.add("add-mode");
+  itemList
+    .querySelectorAll(".edit-mode")
+    .forEach((el) => el.classList.remove("edit-mode"));
 }
 
 // ======================
@@ -62,107 +123,126 @@ function createItem(name) {
 // ======================
 
 /**
- * Handles form submission to add new items
+ * Handles form submission for adding/updating items
  * @param {Event} e - The form submit event
  */
-function addItem(e) {
+function handleSubmit(e) {
   e.preventDefault();
-  const formData = new FormData(form);
-  const name = formData.get("item");
+  const name = inputbox.value.trim();
 
-  if (!name.trim()) {
+  if (!name) {
     alert("Please enter an item name to add");
     return;
   }
 
-  const item = createItem(name);
-  itemList.appendChild(item);
-  form.reset();
-  checkUI();
-  addItemToLocalStorage(name);
-}
-
-function addItemToLocalStorage(name) {
-  let items = localStorage.getItem("items") || "[]";
-  items = JSON.parse(items);
-  items.push(name);
-  localStorage.setItem("items", JSON.stringify(items));
-}
-
-function removeItemFromLocalStorage(name) {
-  let items = localStorage.getItem("items") || "[]";
-  items = JSON.parse(items);
-  // while (items.indexOf(name) !== -1) {
-  //   items.splice(items.indexOf(name), 1);
-  // }
-  items = items.filter((item) => item !== name);
-  localStorage.setItem("items", JSON.stringify(items));
-}
-
-function displayItemsFromLocalStorage() {
-  let items = localStorage.getItem("items") || "[]";
-  items = JSON.parse(items);
-  items.forEach((item) => {
-    const itemd = createItem(item);
-    itemList.appendChild(itemd);
-  });
-  checkUI();
-}
-/**
- * Handles click events on remove buttons
- * @param {Event} e - The click event
- */
-function onClickItem(e) {
-  if (e.target.parentElement.classList.contains("remove-item")) {
-    e.stopPropagation();
-    if (confirm("Are you sure you want to remove this item?")) {
-      const parentItem = e.target.parentElement.parentElement;
-      removeItemFromLocalStorage(parentItem.textContent);
-      parentItem.remove();
-      checkUI();
+  if (isEditMode) {
+    const item = itemList.querySelector(".edit-mode");
+    if (item.textContent !== name) {
+      removeItemFromLocalStorage(item.textContent);
+      addItemToLocalStorage(name);
+      item.textContent = name;
+      item.appendChild(
+        createCloseButton(["remove-item", "btn-link", "text-red"])
+      );
+    }
+    resetForm();
+  } else {
+    if (
+      localStorage.getItem("items") &&
+      localStorage.getItem("items").includes(name)
+    ) {
+      alert("Item already exists");
+      return;
+    } else {
+      const item = createItem(name);
+      itemList.appendChild(item);
+      addItemToLocalStorage(name);
+      form.reset();
     }
   }
+
+  updateUI();
+}
+
+/**
+ * Handles click events on list items or remove buttons
+ * @param {Event} e - The click event
+ */
+function handleItemClick(e) {
+  if (isEditMode) {
+    alert("Please finish editing the current item before adding a new one");
+  } else if (e.target.parentElement.classList.contains("remove-item")) {
+    e.stopPropagation();
+    if (confirm("Are you sure you want to remove this item?")) {
+      const item = e.target.closest("li");
+      removeItemFromLocalStorage(item.textContent);
+      item.remove();
+      updateUI();
+    }
+  } else {
+    editItem(e.target.closest("li"));
+  }
+}
+
+/**
+ * Enables edit mode for an item
+ * @param {HTMLElement} item - The list item element to edit
+ */
+function editItem(item) {
+  isEditMode = true;
+  itemList
+    .querySelectorAll("li")
+    .forEach((li) => li.classList.remove("edit-mode"));
+  item.classList.add("edit-mode");
+  frmbtn.innerHTML = "<i class='fa-solid fa-pen'></i> Update Item";
+  frmbtn.classList.remove("add-mode");
+  frmbtn.classList.add("update-mode");
+  inputbox.value = item.textContent;
+  inputbox.focus();
 }
 
 /**
  * Clears all items from the list
  */
 function clearItems() {
-  localStorage.removeItem("items");
-  while (itemList.firstChild) {
-    itemList.removeChild(itemList.firstChild);
-  }
-  checkUI();
-}
-
-function checkUI() {
-  if (itemList.children.length === 0) {
-    document.getElementById("clear").style.display = "none";
-    document.getElementById("filter").style.display = "none";
-  } else {
-    document.getElementById("clear").style.display = "block";
-    document.getElementById("filter").style.display = "block";
+  if (confirm("Are you sure you want to clear all items?")) {
+    localStorage.removeItem("items");
+    itemList.innerHTML = "";
+    updateUI();
   }
 }
 
+/**
+ * Filters items based on search input
+ * @param {Event} e - The input event
+ */
 function filterItems(e) {
-  const input = e.target.value.toLowerCase();
+  const searchTerm = e.target.value.toLowerCase();
   const items = itemList.querySelectorAll("li");
+
   items.forEach((item) => {
     const text = item.textContent.toLowerCase();
-    if (text.includes(input)) {
-      item.style.display = "flex";
-    } else {
-      item.style.display = "none";
-    }
+    item.style.display = text.includes(searchTerm) ? "flex" : "none";
   });
+}
+
+/**
+ * Initializes the application
+ */
+function init() {
+  const items = getItemsFromStorage();
+  items.forEach((item) => itemList.appendChild(createItem(item)));
+  updateUI();
+
+  // Ensure the button is in add mode when the app starts
+  frmbtn.classList.add("add-mode");
 }
 
 // ======================
 // EVENT LISTENERS
 // ======================
-form.addEventListener("submit", addItem);
-itemList.addEventListener("click", onClickItem);
+form.addEventListener("submit", handleSubmit);
+itemList.addEventListener("click", handleItemClick);
 document.getElementById("clear").addEventListener("click", clearItems);
 document.getElementById("filter").addEventListener("input", filterItems);
-document.addEventListener("DOMContentLoaded", displayItemsFromLocalStorage);
+document.addEventListener("DOMContentLoaded", init);
