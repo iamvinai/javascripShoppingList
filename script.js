@@ -149,7 +149,7 @@ function handleSubmit(e) {
   } else {
     if (
       localStorage.getItem("items") &&
-      localStorage.getItem("items").includes(name)
+      localStorage.getItem("items").toLowerCase().includes(name.toLowerCase())
     ) {
       alert("Item already exists");
       return;
